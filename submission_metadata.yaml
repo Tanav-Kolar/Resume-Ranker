@@ -1,0 +1,78 @@
+# Redrob Hackathon — Submission Metadata
+# Copy this file to your repo root and fill in the TODOs before submitting.
+
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "TODO: your-team-name"
+
+primary_contact:
+  name: "TODO: Full Name"
+  email: "tanavk04@gmail.com"
+  phone: "TODO: +91-XXXXXXXXXX"
+
+team_members:
+  - name: "TODO: Member 1 Full Name"
+    email: "tanavk04@gmail.com"
+    role: "ML Engineer"
+
+# ============================================================================
+# Code and reproducibility
+# ============================================================================
+github_repo: "TODO: https://github.com/YOUR_USERNAME/YOUR_REPO"
+sandbox_link: "TODO: https://huggingface.co/spaces/YOUR_USERNAME/redrob-ranker"
+
+reproduce_command: "python rank.py --candidates ./data/candidates.jsonl --out ./submission.csv"
+
+# ============================================================================
+# Compute environment
+# ============================================================================
+compute:
+  platform: "Local CPU"
+  cpu_cores: 8
+  ram_gb: 16
+  python_version: "3.11"
+  os: "macOS"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: false
+  pre_computation_time_minutes: 0
+
+# ============================================================================
+# AI tools declaration
+# ============================================================================
+ai_tools_used:
+  - "Claude Code"
+
+ai_usage_summary: |
+  Used Claude Code (claude-sonnet-4-6) to scaffold and implement the baseline
+  rule-based ranker. No candidate data was fed to any LLM during ranking.
+  All scoring is deterministic and CPU-only.
+
+# ============================================================================
+# Approach summary
+# ============================================================================
+methodology_summary: |
+  Rule-based ranker with transparent, weighted scoring. Five components:
+  (1) Title/role fit — maps current and historical titles to tiers; dominates
+  to defeat keyword-stuffer traps. (2) Skill relevance — trust-deflated count
+  of core AI/ML skills using proficiency + assessment scores, saturated via tanh
+  so skill piling can't overpower title. (3) Experience fit — rewards the 5-9 yr
+  band (6-8 sweet spot = 1.0) with gentle decay above. (4) Location fit — Noida/
+  Pune highest, Tier-1 India cities, generic India, abroad-if-willing-to-relocate.
+  (5) Behavioral multiplier (0.5-1.2) — scales by recency, open-to-work flag, and
+  recruiter response rate; all -1 sentinels treated as missing, not bad.
+  Honeypot veto pushes logically-impossible profiles out of the shortlist.
+  A documented `semantic` seam in score.py lets the human plug in dense
+  retrieval without touching I/O or CLI code.
+  Runtime: ~20s for 100K candidates on a single CPU core.
+
+# ============================================================================
+# Declarations
+# ============================================================================
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true
