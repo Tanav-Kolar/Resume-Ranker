@@ -18,7 +18,7 @@ jobs:
       - name: Push to HuggingFace Spaces
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_USERNAME: Tanav-Kolar
+          HF_USERNAME: PercivalFletcher
           HF_SPACE_NAME: redrob-ranker
         run: |
           git remote add hf https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/$HF_USERNAME/$HF_SPACE_NAME
