@@ -1,3 +1,7 @@
-# Redrob Candidate Ranker — baseline rule-based scorer
-# No third-party dependencies: only Python standard library is used.
+# Redrob Candidate Ranker
+# The ranker CLI (rank.py) uses only the Python standard library.
+# The Streamlit sandbox (app.py) requires the packages below.
 # Python >= 3.10 required (for X | Y union type hints).
+
+streamlit>=1.32.0
+pandas>=2.0.0

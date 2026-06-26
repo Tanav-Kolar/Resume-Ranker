@@ -1,3 +1,15 @@
+---
+title: Redrob Candidate Ranker
+emoji: 🎯
+colorFrom: blue
+colorTo: indigo
+sdk: streamlit
+sdk_version: 1.32.0
+app_file: app.py
+pinned: false
+license: mit
+---
+
 # Redrob AI — Candidate Ranker (Baseline)
 
 Ranks a pool of 100,000 candidate profiles against the **Senior AI Engineer, Founding Team @ Redrob AI** job description and emits a top-100 shortlist as a spec-compliant CSV.
