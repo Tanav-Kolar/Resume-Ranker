@@ -4,16 +4,21 @@ Streaming JSONL reader (handles .gz transparently) and spec-safe CSV writer.
 import csv
 import gzip
 import json
-import sys
+import logging
 from pathlib import Path
 from typing import Iterator
+
+logger = logging.getLogger("pipeline")
 
 
 def stream_candidates(path: str) -> Iterator[dict]:
     """Yield one candidate dict per line; never loads the full file into memory."""
     p = Path(path)
-    opener = gzip.open if p.suffix == ".gz" else open
-    mode = "rt" if p.suffix == ".gz" else "r"
+    is_gz = p.suffix == ".gz"
+    opener = gzip.open if is_gz else open
+    mode = "rt" if is_gz else "r"
+    fmt = "gzip" if is_gz else "plain JSONL"
+    logger.info("Opening %s (%s) for streaming", p, fmt)
     with opener(p, mode, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
@@ -22,7 +27,7 @@ def stream_candidates(path: str) -> Iterator[dict]:
             try:
                 yield json.loads(line)
             except json.JSONDecodeError as exc:
-                print(f"[warn] skipping malformed line: {exc}", file=sys.stderr)
+                logger.warning("Skipping malformed line: %s", exc)
 
 
 def write_submission(rows: list, out_path: str) -> None:

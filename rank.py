@@ -14,13 +14,23 @@ No GPU, no network, no LLM — pure CPU rule-based scoring.
 
 import argparse
 import heapq
-import sys
 import time
+from pathlib import Path
 
 from src.io_utils import stream_candidates, write_submission
 from src.score import composite_score, HONEYPOT_SENTINEL
 from src.reasoning import build_reasoning
 from src.candidate_filter import filter_candidates
+from src.log_config import setup_logger
+
+
+def _check(logger, name: str, ok: bool, detail: str = "") -> None:
+    """Log a named checkpoint assertion as PASS or FAIL."""
+    suffix = f" — {detail}" if detail else ""
+    if ok:
+        logger.info("  [CHECK PASS] %s%s", name, suffix)
+    else:
+        logger.warning("  [CHECK FAIL] %s%s", name, suffix)
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,9 +61,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    logger = setup_logger()
     t0 = time.time()
 
-    print(f"[rank] reading candidates from {args.candidates} ...", flush=True)
+    logger.info("Reading candidates from %s ...", args.candidates)
 
     # Min-heap keyed by (score, candidate_id).
     # heap[0] is always the lowest-scoring entry in the current top-N window,
@@ -64,8 +75,17 @@ def main() -> None:
     heap = []
     n_processed = 0
     n_honeypot = 0
+    n_streamed = 0
 
-    for candidate in filter_candidates(stream_candidates(args.candidates)):
+    def _counted_stream():
+        nonlocal n_streamed
+        for c in stream_candidates(args.candidates):
+            n_streamed += 1
+            yield c
+
+    n_passed_filter = 0
+    for candidate in filter_candidates(_counted_stream()):
+        n_passed_filter += 1
         result = composite_score(candidate)
         score = result["score"]
         cid = candidate.get("candidate_id", "")
@@ -84,15 +104,40 @@ def main() -> None:
         n_processed += 1
         if n_processed % 10_000 == 0:
             elapsed = time.time() - t0
-            print(f"[rank] processed {n_processed:,} candidates ({elapsed:.1f}s)", flush=True)
+            logger.info("Processed %d candidates (%.1fs)", n_processed, elapsed)
 
-    print(f"[rank] scored {n_processed:,} candidates; {n_honeypot} honeypots detected", flush=True)
+    n_filtered_out = n_streamed - n_passed_filter
+    logger.info(
+        "candidate_filter: %d removed (consulting-only or fictional); %d passed",
+        n_filtered_out, n_passed_filter,
+    )
+    _check(logger, "candidate_filter.no_candidates_added",
+           n_streamed >= n_passed_filter,
+           f"streamed={n_streamed:,}, passed={n_passed_filter:,}")
+
+    logger.info("Scored %d candidates; %d honeypots detected", n_processed, n_honeypot)
+    _check(logger, "scoring.honeypot_count_plausible",
+           0 <= n_honeypot <= n_processed,
+           f"honeypots={n_honeypot}, processed={n_processed:,}")
+    heap_scores = [e[0] for e in heap]
+    _check(logger, "scoring.all_scores_in_bounds",
+           all(-1.0 <= s <= 1.5 for s in heap_scores),
+           f"{len(heap_scores)} heap entries checked")
 
     # Sort: score desc, candidate_id asc for ties (spec requirement).
     top_entries = sorted(heap, key=lambda e: (-e[0], e[1]))
 
     if len(top_entries) < args.top:
-        print(f"[warn] only {len(top_entries)} candidates available (requested {args.top})", file=sys.stderr)
+        logger.warning("Only %d candidates available (requested %d)", len(top_entries), args.top)
+
+    _check(logger, "ranking.size_within_requested",
+           len(top_entries) <= args.top,
+           f"have={len(top_entries)}, requested={args.top}")
+    if len(top_entries) > 1:
+        sorted_scores = [e[0] for e in top_entries]
+        non_increasing = all(sorted_scores[i] >= sorted_scores[i + 1]
+                             for i in range(len(sorted_scores) - 1))
+        _check(logger, "ranking.scores_non_increasing", non_increasing)
 
     # Build output rows
     rows = []
@@ -107,7 +152,12 @@ def main() -> None:
 
     write_submission(rows, args.out)
     elapsed = time.time() - t0
-    print(f"[rank] wrote {len(rows)} rows to {args.out} in {elapsed:.2f}s", flush=True)
+    logger.info("Wrote %d rows to %s in %.2fs", len(rows), args.out, elapsed)
+    _check(logger, "output.file_exists",
+           Path(args.out).exists(), args.out)
+    _check(logger, "output.row_count_matches",
+           len(rows) == min(len(top_entries), args.top),
+           f"rows={len(rows)}")
 
     if args.verbose:
         print("\nTop 20:")
