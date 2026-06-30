@@ -20,6 +20,7 @@ import time
 from src.io_utils import stream_candidates, write_submission
 from src.score import composite_score, HONEYPOT_SENTINEL
 from src.reasoning import build_reasoning
+from src.candidate_filter import filter_candidates
 
 
 def parse_args() -> argparse.Namespace:
@@ -64,7 +65,7 @@ def main() -> None:
     n_processed = 0
     n_honeypot = 0
 
-    for candidate in stream_candidates(args.candidates):
+    for candidate in filter_candidates(stream_candidates(args.candidates)):
         result = composite_score(candidate)
         score = result["score"]
         cid = candidate.get("candidate_id", "")

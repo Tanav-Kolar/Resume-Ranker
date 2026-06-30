@@ -1,3 +1,14 @@
+---
+title: Redrob AI Candidate Ranker
+emoji: 🤖
+colorFrom: blue
+colorTo: indigo
+sdk: streamlit
+sdk_version: "1.44.1"
+app_file: app.py
+pinned: false
+---
+
 # Redrob AI — Candidate Ranker Submission
 
 Ranks a pool of 100,000 candidate profiles against the role : **Senior AI Engineer, Founding Team @ Redrob AI** job description and returns a top-100 shortlist as a CSV.

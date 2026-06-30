@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.score import composite_score
 from src.reasoning import build_reasoning
+from src.candidate_filter import filter_candidates
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -62,12 +63,13 @@ def _parse_candidates(text: str) -> list:
 
 
 def _score_and_rank(candidates: list, top_n: int) -> tuple:
-    """Score all candidates and return (rows, n_honeypots, elapsed_s)."""
+    """Score all candidates and return (rows, n_honeypots, n_filtered, elapsed_s)."""
     t0 = time.time()
     scored = []
     n_honeypot = 0
+    n_total = len(candidates)
 
-    for c in candidates:
+    for c in filter_candidates(candidates):
         result = composite_score(c)
         if result["honeypot_reasons"]:
             n_honeypot += 1
@@ -86,7 +88,8 @@ def _score_and_rank(candidates: list, top_n: int) -> tuple:
             "reasoning": reasoning,
         })
 
-    return rows, n_honeypot, time.time() - t0
+    n_filtered = n_total - len(scored)
+    return rows, n_honeypot, n_filtered, time.time() - t0
 
 
 def _build_csv(rows: list) -> bytes:
@@ -170,14 +173,15 @@ if run_btn:
 
     # Score
     with st.spinner(f"Scoring {len(candidates)} candidates..."):
-        rows, n_honeypot, elapsed = _score_and_rank(candidates, top_n)
+        rows, n_honeypot, n_filtered, elapsed = _score_and_rank(candidates, top_n)
 
     # Stats
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Candidates scored", len(candidates))
-    col2.metric("Top-N returned", len(rows))
-    col3.metric("Honeypots detected", n_honeypot)
-    col4.metric("Runtime", f"{elapsed:.2f}s")
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Candidates loaded", len(candidates))
+    col2.metric("Filtered out", n_filtered)
+    col3.metric("Top-N returned", len(rows))
+    col4.metric("Honeypots detected", n_honeypot)
+    col5.metric("Runtime", f"{elapsed:.2f}s")
 
     st.success(f"Ranked {len(rows)} candidates from {source} in {elapsed:.2f}s.")
 
