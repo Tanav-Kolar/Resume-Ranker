@@ -1,7 +1,6 @@
 """
 Streaming JSONL reader (handles .gz transparently) and spec-safe CSV writer.
 """
-
 import csv
 import gzip
 import json
