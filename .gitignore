@@ -136,3 +136,10 @@ cython_debug/
 /.claude/
 
 INITIAL_PIPELINE_BRIEF.md
+
+# Pipeline run artefacts — keep sample files, ignore generated ones
+logs/pipeline_*.log
+submission.csv
+submissions/csv/submission_*.csv
+submissions/diffs/diff_*.txt
+!logs/sample_pipeline.log

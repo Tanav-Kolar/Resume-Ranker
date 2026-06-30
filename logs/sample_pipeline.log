@@ -1,0 +1,16 @@
+01:03:06 [INFO] Log file: logs/pipeline_20260701T010306.log
+01:03:06 [INFO] Reading candidates from ./challenge_dataset/candidates.jsonl ...
+01:03:06 [INFO] Opening challenge_dataset/candidates.jsonl (plain JSONL) for streaming
+01:03:08 [INFO] candidate_filter: 91269 removed (consulting-only or fictional); 8731 passed
+01:03:08 [INFO]   [CHECK PASS] candidate_filter.no_candidates_added — streamed=100,000, passed=8,731
+01:03:08 [INFO] Scored 8731 candidates; 1841 honeypots detected
+01:03:08 [INFO]   [CHECK PASS] scoring.honeypot_count_plausible — honeypots=1841, processed=8,731
+01:03:08 [INFO]   [CHECK PASS] scoring.all_scores_in_bounds — 100 heap entries checked
+01:03:08 [INFO]   [CHECK PASS] ranking.size_within_requested — have=100, requested=100
+01:03:08 [INFO]   [CHECK PASS] ranking.scores_non_increasing
+01:03:08 [INFO] Wrote 100 rows to ./submission.csv in 1.99s
+01:03:08 [INFO]   [CHECK PASS] output.file_exists — ./submission.csv
+01:03:08 [INFO]   [CHECK PASS] output.row_count_matches — rows=100
+01:03:08 [INFO] Archived to submissions/csv/submission_20260701T010308.csv
+01:03:08 [INFO] Diffing against predecessor submission_20260701T005217.csv ...
+01:03:08 [INFO] Diff saved to submissions/diffs/diff_20260701T010308.txt
