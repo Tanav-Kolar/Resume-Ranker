@@ -14,6 +14,7 @@ No GPU, no network, no LLM — pure CPU rule-based scoring.
 
 import argparse
 import heapq
+import shutil
 import time
 from pathlib import Path
 
@@ -22,6 +23,7 @@ from src.score import composite_score, HONEYPOT_SENTINEL
 from src.reasoning import build_reasoning
 from src.candidate_filter import filter_candidates
 from src.log_config import setup_logger
+from diff_submissions import diff_to_string
 
 
 def _check(logger, name: str, ok: bool, detail: str = "") -> None:
@@ -158,6 +160,29 @@ def main() -> None:
     _check(logger, "output.row_count_matches",
            len(rows) == min(len(top_entries), args.top),
            f"rows={len(rows)}")
+
+    csv_dir   = Path("submissions") / "csv"
+    diffs_dir = Path("submissions") / "diffs"
+    csv_dir.mkdir(parents=True, exist_ok=True)
+    diffs_dir.mkdir(parents=True, exist_ok=True)
+
+    ts = time.strftime("%Y%m%dT%H%M%S")
+    archive = csv_dir / f"submission_{ts}.csv"
+    shutil.copy2(args.out, archive)
+    logger.info("Archived to %s", archive)
+
+    # Auto-diff against the immediately preceding submission.
+    prev_csvs = sorted(csv_dir.glob("submission_*.csv"))
+    # prev_csvs now includes the archive we just wrote; predecessor is one before it.
+    if len(prev_csvs) >= 2:
+        predecessor = prev_csvs[-2]
+        logger.info("Diffing against predecessor %s ...", predecessor.name)
+        diff_text = diff_to_string(str(predecessor), str(archive))
+        diff_file = diffs_dir / f"diff_{ts}.txt"
+        diff_file.write_text(diff_text, encoding="utf-8")
+        logger.info("Diff saved to %s", diff_file)
+    else:
+        logger.info("No predecessor found — skipping auto-diff (this is the first submission)")
 
     if args.verbose:
         print("\nTop 20:")
