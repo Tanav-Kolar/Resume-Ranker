@@ -1,38 +1,7 @@
----
-title: Redrob Candidate Ranker
-emoji: 🎯
-colorFrom: blue
-colorTo: indigo
-sdk: streamlit
-sdk_version: 1.32.0
-app_file: app.py
-pinned: false
-license: mit
----
+# Redrob AI — Candidate Ranker Submission
 
-# Redrob AI — Candidate Ranker (Baseline)
+Ranks a pool of 100,000 candidate profiles against the role : **Senior AI Engineer, Founding Team @ Redrob AI** job description and returns a top-100 shortlist as a CSV.
 
-Ranks a pool of 100,000 candidate profiles against the **Senior AI Engineer, Founding Team @ Redrob AI** job description and emits a top-100 shortlist as a spec-compliant CSV.
-
----
-
-## Reproduce
-
-```bash
-python rank.py --candidates ./challenge_dataset/candidates.jsonl --out ./submission.csv
-```
-
-No installation required — the baseline uses only the Python standard library (Python ≥ 3.10).
-
-Validate the output:
-
-```bash
-python data/validate_submission.py submission.csv
-```
-
-Typical runtime: **< 5 seconds** on a single CPU core for the full 100K pool.
-
----
 
 ## Project layout
 
