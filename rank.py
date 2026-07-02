@@ -239,6 +239,11 @@ def main() -> None:
         for row in rows[:20]:
             print(f"{row['rank']:>4}  {row['score']:>8.4f}  {row['candidate_id']:<15}  {row['reasoning'][:60]}")
 
+    # Total end-to-end wall-clock: streaming + filter + scoring + ranking + write
+    # + archive + diff + eval. This is the number that must stay under the 5-min budget.
+    total_elapsed = time.time() - t0
+    logger.info("TOTAL end-to-end pipeline time: %.2fs", total_elapsed)
+
 
 if __name__ == "__main__":
     main()

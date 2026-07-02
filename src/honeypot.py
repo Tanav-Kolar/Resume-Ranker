@@ -102,3 +102,125 @@ def check_honeypot(candidate: dict) -> list:
             break
 
     return reasons
+
+
+# ---------------------------------------------------------------------------
+# Extended cross-field consistency checks
+# ---------------------------------------------------------------------------
+# Reliability note (calibrated against the eval label set):
+#   HIGH-PRECISION (safe to promote into the check_honeypot veto if desired):
+#     duration_exceeds_span, is_current_but_ended / not_current_no_end,
+#     signal-date sanity, current_company_mismatch.
+#   NOISY in this dataset (education start/end years are largely decoupled from
+#     careers — e.g. an M.Tech dated 2002-2006 on a 6-yr candidate — so these
+#     false-positive heavily; keep SOFT / eval-only, do NOT hard-veto):
+#     exp_exceeds_since_grad, work_before_college, education_too_short.
+# check_honeypot() (the veto) intentionally does NOT call these; they are
+# surfaced separately so the human decides which, if any, to promote.
+
+_CUR_YEAR = _TODAY.year
+
+
+def _canonical_degree_years(degree: str):
+    """Canonical program length in years; None = skip (PhD/diploma/unknown)."""
+    d = (degree or "").lower()
+    if "integrated" in d or "dual degree" in d:
+        return 5
+    if any(k in d for k in ("b.tech", "btech", "b.e", "bachelor of technology",
+                            "bachelor of engineering")):
+        return 4
+    if any(k in d for k in ("bca", "bba", "b.com", "bcom", "b.a", "bachelor of arts",
+                            "bachelor of commerce", "b.sc", "bsc", "bachelor of science")):
+        return 3
+    if any(k in d for k in ("m.tech", "mtech", "m.e", "master of technology",
+                            "mba", "pgdm", "m.sc", "msc", "master of science",
+                            "master of business")):
+        return 2
+    return None
+
+
+def extended_honeypot_reasons(candidate: dict) -> list:
+    """Strengthened cross-field consistency checks (see reliability note above).
+
+    Returned as reason strings but NOT part of the check_honeypot veto by default.
+    """
+    reasons = []
+    p = candidate.get("profile", {})
+    yoe = float(p.get("years_of_experience", 0) or 0)
+    career = candidate.get("career_history", [])
+    edu = candidate.get("education", [])
+    sig = candidate.get("redrob_signals", {})
+
+    # duration_months vs the date span, per job (self-contradiction — high precision)
+    for j in career:
+        sd, ed = _parse_date(j.get("start_date")), _parse_date(j.get("end_date"))
+        if sd:
+            end = ed or _TODAY
+            span = (end.year - sd.year) * 12 + (end.month - sd.month)
+            dur = int(j.get("duration_months", 0) or 0)
+            if dur > span + 6:
+                reasons.append(f"duration_exceeds_span: '{j.get('title')}' {dur}m vs {span}m span")
+                break
+
+    # experience exceeds time since graduation (NOISY — education dates unreliable)
+    grad_years = [e.get("end_year") for e in edu
+                  if _canonical_degree_years(e.get("degree", "")) in (3, 4, 5)
+                  and isinstance(e.get("end_year"), int)]
+    if grad_years:
+        grad = max(min(grad_years), 1970)
+        if 1970 <= grad <= _CUR_YEAR and yoe > (_CUR_YEAR - grad) + 1.5:
+            reasons.append(f"exp_exceeds_since_grad: yoe {yoe} vs {_CUR_YEAR - grad}y since {grad}")
+
+    # working before starting undergrad (NOISY)
+    ug_starts = [e.get("start_year") for e in edu
+                 if _canonical_degree_years(e.get("degree", "")) in (3, 4, 5)
+                 and isinstance(e.get("start_year"), int)]
+    job_years = [_parse_date(j.get("start_date")).year for j in career
+                 if _parse_date(j.get("start_date"))]
+    if ug_starts and job_years and min(job_years) < min(ug_starts):
+        reasons.append(f"work_before_college: job {min(job_years)} < ug {min(ug_starts)}")
+
+    # is_current vs end_date (high precision)
+    for j in career:
+        ic = j.get("is_current")
+        ed = _parse_date(j.get("end_date"))
+        if ic is True and ed and ed.year < _CUR_YEAR:
+            reasons.append(f"is_current_but_ended: '{j.get('title')}' ended {ed}")
+            break
+        if ic is False and j.get("end_date") in (None, "", "null"):
+            reasons.append(f"not_current_no_end: '{j.get('title')}'")
+            break
+
+    # signal-date sanity (high precision)
+    su, la = _parse_date(sig.get("signup_date")), _parse_date(sig.get("last_active_date"))
+    if su and la and la < su:
+        reasons.append(f"last_active_before_signup: {la} < {su}")
+    if (su and su > _TODAY) or (la and la > _TODAY):
+        reasons.append("signal_date_in_future")
+
+    # current_company vs the is_current job (high precision)
+    cur_co = (p.get("current_company") or "").lower()
+    cur_jobs = [(j.get("company") or "").lower() for j in career if j.get("is_current")]
+    if cur_co and cur_jobs and not any(cur_co in cj or cj in cur_co for cj in cur_jobs):
+        reasons.append(f"current_company_mismatch: '{cur_co}' not in current job(s)")
+
+    # education finishing impossibly fast (NOISY — canonical-2 or less)
+    for e in edu:
+        can = _canonical_degree_years(e.get("degree", ""))
+        sy, ey = e.get("start_year"), e.get("end_year")
+        if can and isinstance(sy, int) and isinstance(ey, int):
+            actual = ey - sy
+            if 0 <= actual <= can - 2:
+                reasons.append(f"education_too_short: {e.get('degree')} {actual}y vs {can}y")
+                break
+
+    return reasons
+
+
+def all_honeypot_reasons(candidate: dict) -> list:
+    """The veto set (check_honeypot) + the extended checks.
+
+    For tooling that wants the full picture (e.g. the eval label sampler). The
+    pipeline veto uses check_honeypot alone.
+    """
+    return list(check_honeypot(candidate)) + extended_honeypot_reasons(candidate)

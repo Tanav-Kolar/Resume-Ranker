@@ -1,8 +1,8 @@
 {
-  "submission": "submission_20260702T153554.csv",
+  "submission": "submission_timestamp.csv",
   "labels": "evals/labels.csv",
   "n_labels": 60,
-  "timestamp": "2026-07-02T15:35:54",
+  "timestamp": "2026-XX-XX2TXX:XX:XX",
   "NDCG@10": 0.8164,
   "NDCG@50": 0.6047,
   "MAP": 0.4901,

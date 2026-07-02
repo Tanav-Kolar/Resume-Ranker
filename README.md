@@ -14,6 +14,35 @@ pinned: false
 Ranks a pool of 100,000 candidate profiles against the role : **Senior AI Engineer, Founding Team @ Redrob AI** job description and returns a top-100 shortlist as a CSV.
 
 
+## Running the pipeline
+
+Produce the top-100 submission from the candidate pool with a single command:
+
+```bash
+pip install -r requirements.txt
+python rank.py --candidates challenge_dataset/candidates.jsonl --out submission.csv
+```
+
+This runs the whole pipeline end-to-end — streaming read → candidate filter → scoring →
+honeypot veto → ranking → CSV write — and logs a `TOTAL end-to-end pipeline time` line at the
+end (currently ~2–3 s on the full 100K pool, far under the 5-minute budget). Every run also
+automatically:
+
+- archives the output to `submissions/csv/submission_<ts>.csv`
+- diffs it against the previous run → `submissions/diffs/diff_<ts>.txt`
+- scores it against the local eval set, logging the metrics and the delta vs baseline, and saves `evals/runs/eval_<ts>.json`
+- writes a full run log to `logs/pipeline_<ts>.log`
+
+Validate the CSV against the official validator (should print **Submission is valid.**):
+
+```bash
+python data/validate_submission.py submission.csv
+```
+
+Useful flags: `--verbose` (print the top 20), `--skip-eval` (skip the auto-eval),
+`--labels <path>` (different eval label set), `--top N` (shortlist size, default 100).
+
+
 ## Project layout
 
 ```
@@ -52,6 +81,13 @@ submissions/
   diffs/
     diff_<timestamp>.txt        # auto-generated diff vs. the immediately preceding run. (gitignored)
     sample_diff.txt             # example diff report (committed)
+evals/
+  labels.csv                # human-verified relevance labels (tier 0-5) — the eval answer key
+  evaluate.py               # scores a submission vs labels: NDCG@10/50, MAP, P@10, composite
+  baseline.json             # stored reference score to compare each run against
+  make_label_worksheet.py   # stratified sampler that builds the labeling worksheet
+  runs/
+    eval_<timestamp>.json   # metrics for each rank.py run (auto-saved)
 challenge_dataset/
   candidates.jsonl        # 100K candidate profiles (not committed — too large)
   sample_candidates.json  # ~50 candidate sample for fast testing
@@ -102,6 +138,22 @@ via `diff_submissions.py`, saving the report to `submissions/diffs/diff_<timesta
 makes it easy to see how the ranking evolves as the scoring logic is tuned. Generated CSVs and
 diffs are gitignored; `sample_submission.csv` and `sample_diff.txt` are committed as format
 examples.
+
+### `evals/`
+
+A local evaluation harness — a private proxy for the hidden leaderboard. `evaluate.py` scores a
+submission against `labels.csv` (60 hand-verified candidates tiered 0–5) using the organizers'
+exact formula (`0.50·NDCG@10 + 0.30·NDCG@50 + 0.15·MAP + 0.05·P@10`), and reports label coverage
+and honeypot leakage. `rank.py` runs this automatically after every ranking, logs the metrics and
+the delta vs `baseline.json`, and archives the result to `evals/runs/eval_<timestamp>.json`. Use it
+to tell — with a number, not a guess — whether a scoring change helped. See `evals/README.md` for
+the tier rubric and caveats.
+
+Run it standalone against any submission:
+
+```bash
+python evals/evaluate.py --submission submission.csv --labels evals/labels.csv
+```
 
 ---
 
