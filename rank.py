@@ -69,6 +69,17 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip the automatic eval step",
     )
+    p.add_argument(
+        "--semantic-scores",
+        default="artifacts",
+        metavar="DIR",
+        help="Directory containing query_vectors.npz and candidate_chunks.npz (default: artifacts)",
+    )
+    p.add_argument(
+        "--no-semantic",
+        action="store_true",
+        help="Disable semantic scoring even if artifacts are present",
+    )
     return p.parse_args()
 
 
@@ -78,6 +89,17 @@ def main() -> None:
     t0 = time.time()
 
     logger.info("Reading candidates from %s ...", args.candidates)
+
+    sem_scores: dict[str, float] = {}
+    artifacts_dir = Path(args.semantic_scores)
+    query_path = artifacts_dir / "query_vectors.npz"
+    chunks_path = artifacts_dir / "candidate_chunks.npz"
+    if not args.no_semantic and query_path.exists() and chunks_path.exists():
+        from src.semantic import load_semantic_scores
+        sem_scores = load_semantic_scores(str(query_path), str(chunks_path))
+        logger.info("Semantic active: %d candidates scored", len(sem_scores))
+    else:
+        logger.info("Semantic inactive (artifacts missing or --no-semantic) — structured only")
 
     # Min-heap keyed by (score, candidate_id).
     # heap[0] is always the lowest-scoring entry in the current top-N window,
@@ -99,9 +121,9 @@ def main() -> None:
     n_passed_filter = 0
     for candidate in filter_candidates(_counted_stream()):
         n_passed_filter += 1
-        result = composite_score(candidate)
-        score = result["score"]
         cid = candidate.get("candidate_id", "")
+        result = composite_score(candidate, semantic=sem_scores.get(cid))
+        score = result["score"]
 
         if result["honeypot_reasons"]:
             n_honeypot += 1
