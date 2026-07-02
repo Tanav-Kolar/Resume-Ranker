@@ -14,6 +14,7 @@ No GPU, no network, no LLM — pure CPU rule-based scoring.
 
 import argparse
 import heapq
+import json
 import shutil
 import time
 from pathlib import Path
@@ -57,6 +58,16 @@ def parse_args() -> argparse.Namespace:
         "--verbose",
         action="store_true",
         help="Print top-20 to stdout after writing",
+    )
+    p.add_argument(
+        "--labels",
+        default="evals/labels.csv",
+        help="Eval labels CSV; auto-eval runs against it after ranking",
+    )
+    p.add_argument(
+        "--skip-eval",
+        action="store_true",
+        help="Skip the automatic eval step",
     )
     return p.parse_args()
 
@@ -184,12 +195,54 @@ def main() -> None:
     else:
         logger.info("No predecessor found — skipping auto-diff (this is the first submission)")
 
+    # Auto-eval the fresh submission against the local label set (proxy leaderboard).
+    if not args.skip_eval:
+        labels_path = Path(args.labels)
+        if labels_path.exists():
+            try:
+                from evals.evaluate import evaluate
+                m = evaluate(args.out, str(labels_path))
+                m["submission"] = archive.name  # tie metrics to the archived snapshot, not the generic --out path
+                logger.info(
+                    "EVAL composite=%.4f (NDCG@10=%.4f NDCG@50=%.4f MAP=%.4f P@10=%.4f)",
+                    m["composite"], m["NDCG@10"], m["NDCG@50"], m["MAP"], m["P@10"],
+                )
+                cov, t0z = m["labeled_coverage"], m["tier0_in_top"]
+                logger.info(
+                    "EVAL coverage top10/50/100=%d/%d/%d; tier0_in_top100=%d",
+                    cov["top10"], cov["top50"], cov["top100"], t0z["top100"],
+                )
+                # Compare against the stored baseline, if present.
+                base_path = Path("evals") / "baseline.json"
+                if base_path.exists():
+                    base = json.loads(base_path.read_text(encoding="utf-8"))
+                    delta = m["composite"] - base.get("composite", 0.0)
+                    logger.info("EVAL delta vs baseline: %+.4f (baseline=%.4f)",
+                                delta, base.get("composite", 0.0))
+                # Archive a timestamped eval result next to the submission archive.
+                runs_dir = Path("evals") / "runs"
+                runs_dir.mkdir(parents=True, exist_ok=True)
+                eval_file = runs_dir / f"eval_{ts}.json"
+                eval_file.write_text(json.dumps(m, indent=2), encoding="utf-8")
+                logger.info("Eval saved to %s", eval_file)
+                _check(logger, "eval.no_honeypots_in_top100",
+                       t0z["top100"] == 0, f"tier0_in_top100={t0z['top100']}")
+            except Exception as e:  # never let eval crash the pipeline
+                logger.warning("EVAL step failed: %s", e)
+        else:
+            logger.info("EVAL skipped — labels not found at %s", labels_path)
+
     if args.verbose:
         print("\nTop 20:")
         print(f"{'Rank':>4}  {'Score':>8}  {'ID':<15}  Reasoning")
         print("-" * 90)
         for row in rows[:20]:
             print(f"{row['rank']:>4}  {row['score']:>8.4f}  {row['candidate_id']:<15}  {row['reasoning'][:60]}")
+
+    # Total end-to-end wall-clock: streaming + filter + scoring + ranking + write
+    # + archive + diff + eval. This is the number that must stay under the 5-min budget.
+    total_elapsed = time.time() - t0
+    logger.info("TOTAL end-to-end pipeline time: %.2fs", total_elapsed)
 
 
 if __name__ == "__main__":
