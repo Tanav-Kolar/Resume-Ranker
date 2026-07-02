@@ -1,0 +1,21 @@
+{
+  "submission": "submission_20260702T153554.csv",
+  "labels": "evals/labels.csv",
+  "n_labels": 60,
+  "timestamp": "2026-07-02T15:35:54",
+  "NDCG@10": 0.8164,
+  "NDCG@50": 0.6047,
+  "MAP": 0.4901,
+  "P@10": 1.0,
+  "composite": 0.7131,
+  "labeled_coverage": {
+    "top10": 10,
+    "top50": 22,
+    "top100": 30
+  },
+  "tier0_in_top": {
+    "top10": 0,
+    "top50": 0,
+    "top100": 0
+  }
+}

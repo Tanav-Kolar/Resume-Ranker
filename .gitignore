@@ -142,4 +142,4 @@ logs/pipeline_*.log
 submission.csv
 submissions/csv/submission_*.csv
 submissions/diffs/diff_*.txt
-!logs/sample_pipeline.log
+
