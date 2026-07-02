@@ -6,3 +6,6 @@
 streamlit>=1.32.0
 pandas>=2.0.0
 pytest>=8.0
+
+# --- precompute only (not needed at rank time) ---
+fastembed>=0.3.0

@@ -146,3 +146,8 @@ evals/runs/eval_*.json
 
 
 SEMANTIC_COMPONENT_BRIEF.md
+SEMANTIC_IMPLEMENTATION_PLAN.md
+
+# semantic artifacts — candidate_chunks.npz is large; regenerate with scripts/precompute_embeddings.py
+# query_vectors.npz is tiny and committed so rank.py reproduces offline without network
+artifacts/candidate_chunks.npz

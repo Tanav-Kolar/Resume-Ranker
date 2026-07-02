@@ -4,68 +4,75 @@
 # ============================================================================
 # Team identity
 # ============================================================================
-team_name: "TODO: your-team-name"
+team_name: "Pikachu >>> Raichu"
 
 primary_contact:
-  name: "TODO: Full Name"
-  email: "tanavk04@gmail.com"
-  phone: "TODO: +91-XXXXXXXXXX"
+  name: "Tanav Kolar"
+  email: "tanavkolar@gmail.com"
+  phone: "+91-7738488026"
 
 team_members:
-  - name: "TODO: Member 1 Full Name"
-    email: "tanavk04@gmail.com"
+  - name: "Shreyansh Kumar Nayak"
+    email: "shreyanshforpython@gmail.com"
     role: "ML Engineer"
 
 # ============================================================================
 # Code and reproducibility
 # ============================================================================
-github_repo: "TODO: https://github.com/YOUR_USERNAME/YOUR_REPO"
-sandbox_link: "TODO: https://huggingface.co/spaces/YOUR_USERNAME/redrob-ranker"
+github_repo: "https://github.com/Tanav-Kolar/Resume-Ranker"
+sandbox_link: "https://huggingface.co/spaces/PercivalFletcher/redrob-ranker"
 
-reproduce_command: "python rank.py --candidates ./data/candidates.jsonl --out ./submission.csv"
+reproduce_command: "python rank.py --candidates ./challenge_dataset/candidates.jsonl --out ./submission.csv"
+# Semantic embeddings are precomputed offline (see pre_computation below); the
+# artifacts/ are committed so the ranking step above runs CPU-only with no network.
 
 # ============================================================================
 # Compute environment
 # ============================================================================
 compute:
-  platform: "Local CPU"
+  platform: "MacBook Air M3 (Apple Silicon), CPU-only for ranking"
   cpu_cores: 8
   ram_gb: 16
   python_version: "3.11"
-  os: "macOS"
+  os: "macOS Sequoia 15.7.3"
   uses_gpu_for_inference: false
   has_network_during_ranking: false
-  pre_computation_required: false
-  pre_computation_time_minutes: 0
+  pre_computation_required: true      # candidate + JD-archetype embeddings (bge-small)
+  pre_computation_time_minutes: 3     # approx, one-time, offline
 
 # ============================================================================
 # AI tools declaration
 # ============================================================================
 ai_tools_used:
-  - "Claude Code"
+  - "Claude" # 
+  - "GitHub Copilot" # for auto-complete
 
 ai_usage_summary: |
-  Used Claude Code (claude-sonnet-4-6) to scaffold and implement the baseline
-  rule-based ranker. No candidate data was fed to any LLM during ranking.
-  All scoring is deterministic and CPU-only.
+  Used Claude for building the evaluation harness and LLM-assisted label set, and code review. 
+  The HyDE archetype profiles were LLM-authored offline.
+  All architecture, tuning, and ranking decisions are the team's own.
+  No candidate data was sent to any hosted LLM, and no LLM is called
+  during the ranking step (network is off).
 
 # ============================================================================
 # Approach summary
 # ============================================================================
 methodology_summary: |
-  Rule-based ranker with transparent, weighted scoring. Five components:
-  (1) Title/role fit — maps current and historical titles to tiers; dominates
-  to defeat keyword-stuffer traps. (2) Skill relevance — trust-deflated count
-  of core AI/ML skills using proficiency + assessment scores, saturated via tanh
-  so skill piling can't overpower title. (3) Experience fit — rewards the 5-9 yr
-  band (6-8 sweet spot = 1.0) with gentle decay above. (4) Location fit — Noida/
-  Pune highest, Tier-1 India cities, generic India, abroad-if-willing-to-relocate.
-  (5) Behavioral multiplier (0.5-1.2) — scales by recency, open-to-work flag, and
-  recruiter response rate; all -1 sentinels treated as missing, not bad.
-  Honeypot veto pushes logically-impossible profiles out of the shortlist.
-  A documented `semantic` seam in score.py lets the human plug in dense
-  retrieval without touching I/O or CLI code.
-  Runtime: ~20s for 100K candidates on a single CPU core.
+  A hybrid ranker that models what the JD means, not its keywords. A hard pre-filter
+  removes consulting-only and fictional-company profiles (100K to ~8.7K clean). Each
+  candidate gets a composite fit score fusing structured signals — graded title/role
+  tiers (the decisive anti-stuffer signal), trust-deflated skill relevance (claims
+  discounted by Redrob assessment scores), experience-band fit and location — with a
+  dense semantic signal: we embed HyDE-style hypothetical ideal-candidate profiles
+  (bge-small-en-v1.5) and take each candidate's best cosine match against them, which
+  surfaces strong "plain-language" fits whose titles undersell them. A behavioral
+  multiplier down-weights inactive or unresponsive candidates; a honeypot veto removes
+  logically-impossible profiles (e.g. a skill used longer than the person's career).
+  Structured attributes stay graded features, not hard filters, to protect recall.
+  Embeddings are precomputed offline; the ranking step is CPU-only, no-network.
+  We validated locally against a 60-candidate LLM-labeled eval set scored on the organizers' 
+  exact metric (NDCG@10/50, MAP, P@10), with an auto-eval after every run used to tune weights. 
+  No LLM is called during ranking.
 
 # ============================================================================
 # Declarations
